@@ -69,7 +69,7 @@ else
 		echo $WHITE
 		exit 0
 	fi
-	chmod 755 $LIBDIR/enigma2/python3/Plugins/Extensions/BackupSuite/backupsuite.sh > /dev/null 2>&1
-	$LIBDIR/enigma2/python3/Plugins/Extensions/BackupSuite/backupsuite.sh "$TARGET" 
+	chmod 755 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh > /dev/null 2>&1
+	$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh "$TARGET" 
 	sync
 fi
