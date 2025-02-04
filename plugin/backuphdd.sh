@@ -21,7 +21,7 @@ if [ -d "/usr/lib64" ]; then
 else
 	LIBDIR="/usr/lib"
 fi
-PYVERSION=$(python -V 2>&1 | awk '{print $2}')
+PYVERSION=$(python3 -V 2>&1 | awk '{print $2}')
 case $PYVERSION in
 	2.*)
 		PYEXT=pyo
@@ -31,12 +31,12 @@ case $PYVERSION in
 		;;
 esac
 if [ -z $PYVERSION ]; then
-	echo "Unable to determine installed Python version!"
+	echo "Unable to determine installed Python3 version!"
 	exit 1
 fi
 
 export LANG=$1
-export SHOW="python $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/message.$PYEXT $LANG"
+export SHOW="python3 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/message.$PYEXT $LANG"
 export HARDDISK=1
 echo -n $YELLOW
 $SHOW "message20"   	#echo "Full back-up to the harddisk"

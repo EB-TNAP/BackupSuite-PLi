@@ -26,7 +26,7 @@ else
 	LS2="-l"
 fi
 
-PYVERSION=$(python -V 2>&1 | awk '{print $2}')
+PYVERSION=$(python3 -V 2>&1 | awk '{print $2}')
 case $PYVERSION in
 	2.*)
 		PYEXT=pyo
@@ -36,7 +36,7 @@ case $PYVERSION in
 		;;
 esac
 if [ -z $PYVERSION ]; then
-	echo "Unable to determine installed Python version!"
+	echo "Unable to determine installed Python3 version!"
 	exit 1
 fi
 
@@ -403,7 +403,7 @@ else
 		log "Kernel resides on $KERNEL"
 		dd if=/dev/kernel of=$WORKDIR/$KERNELNAME > /dev/null 2>&1
 	else
-		python $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/findkerneldevice.$PYEXT
+		python3 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/findkerneldevice.$PYEXT
 		KERNEL=`cat /sys/firmware/devicetree/base/chosen/kerneldev`
 		KERNELNAME=${KERNEL:11:7}.bin
 		echo "$KERNELNAME = STARTUP_${KERNEL:17:1}"

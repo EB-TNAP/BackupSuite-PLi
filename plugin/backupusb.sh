@@ -21,7 +21,7 @@ if [ -d "/usr/lib64" ]; then
 else
 	LIBDIR="/usr/lib"
 fi
-PYVERSION=$(python -V 2>&1 | awk '{print $2}')
+PYVERSION=$(python3 -V 2>&1 | awk '{print $2}')
 case $PYVERSION in
 	2.*)
 		PYEXT=pyo
@@ -31,13 +31,13 @@ case $PYVERSION in
 		;;
 esac
 if [ -z $PYVERSION ]; then
-	echo "Unable to determine installed Python version!"
+	echo "Unable to determine installed python3 version!"
 	exit 1
 fi
 
 export LANG=$1
 export HARDDISK=0
-export SHOW="python $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/message.$PYEXT $LANG"
+export SHOW="python3 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/message.$PYEXT $LANG"
 TARGET="XX"
 USEDSIZE=`df -k /usr/ | grep [0-9]% | tr -s " " | cut -d " " -f 3` # size of rootfs
 NEEDEDSPACE=$(((4*$USEDSIZE)/1024))
@@ -69,7 +69,7 @@ else
 		echo $WHITE
 		exit 0
 	fi
-	chmod 755 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh > /dev/null 2>&1
-	$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh "$TARGET" 
+	chmod 755 $LIBDIR/enigma2/python3/Plugins/Extensions/BackupSuite/backupsuite.sh > /dev/null 2>&1
+	$LIBDIR/enigma2/python3/Plugins/Extensions/BackupSuite/backupsuite.sh "$TARGET" 
 	sync
 fi
