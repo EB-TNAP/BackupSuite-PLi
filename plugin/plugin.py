@@ -366,9 +366,8 @@ class FlashImageConfig(Screen):
 
     def __layoutFinished(self):
         pass
-### Part 1 End
 
-def dualBoot(self):
+    def dualBoot(self):
         """Check if the device supports dual boot"""
         if getBoxType() == "et8500":
             rootfs2 = False
