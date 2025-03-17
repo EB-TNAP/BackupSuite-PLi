@@ -16,7 +16,6 @@ else
 fi
 
 if [ -d "/usr/lib64" ]; then
-	echo "multilib situation!"
 	LIBDIR="/usr/lib64"
 else
 	LIBDIR="/usr/lib"
@@ -38,27 +37,44 @@ fi
 export LANG=$1
 export HARDDISK=0
 export SHOW="python3 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/message.$PYEXT $LANG"
-TARGET="XX"
-USEDSIZE=`df -k /usr/ | grep [0-9]% | tr -s " " | cut -d " " -f 3` # size of rootfs
+TARGET=""
+# Get used size of rootfs in one operation - more efficient
+USEDSIZE=$(df -k /usr/ | awk 'NR==2 {print $3}')
 NEEDEDSPACE=$(((4*$USEDSIZE)/1024))
-for candidate in `cut -d ' ' -f 2 /proc/mounts | grep '^/media/'`
-do
-	if [ -f "${candidate}/"*[Bb][Aa][Cc][Kk][Uu][Pp][Ss][Tt][Ii][Cc][Kk]* ] || [ -d "${candidate}/"*[Bb][Aa][Cc][Kk][Uu][Pp][Ss][Tt][Ii][Cc][Kk]* ] 
-	then
-	TARGET="${candidate}"
-	fi 
-done
-if [ "$TARGET" = "XX" ] ; then
+
+# More efficient device detection - checks all mounts at once
+mount_info=$(grep -E '^/dev/sd[a-z][0-9]+ /media/' /proc/mounts)
+
+# Find backup device in one operation
+while read -r device mountpoint fstype rest; do
+    if [ -f "${mountpoint}/"*[Bb][Aa][Cc][Kk][Uu][Pp][Ss][Tt][Ii][Cc][Kk]* ] || [ -d "${mountpoint}/"*[Bb][Aa][Cc][Kk][Uu][Pp][Ss][Tt][Ii][Cc][Kk]* ]; then
+        TARGET="${mountpoint}"
+        break
+    fi
+done <<< "$mount_info"
+
+# If no target found from mount_info, fall back to traditional method
+if [ -z "$TARGET" ]; then
+    for candidate in $(cut -d ' ' -f 2 /proc/mounts | grep '^/media/')
+    do
+        if [ -f "${candidate}/"*[Bb][Aa][Cc][Kk][Uu][Pp][Ss][Tt][Ii][Cc][Kk]* ] || [ -d "${candidate}/"*[Bb][Aa][Cc][Kk][Uu][Pp][Ss][Tt][Ii][Cc][Kk]* ]; then
+            TARGET="${candidate}"
+            break
+        fi 
+    done
+fi
+
+if [ -z "$TARGET" ] ; then
 	echo -n $RED
 	$SHOW "message21" #error about no USB-found
 	echo -n $WHITE
 else
 	echo -n $YELLOW
 	$SHOW "message22" 
-	SIZE_1="$(df -h "$TARGET" | tail -n 1 | awk {'print $(NF-2)'})"
-	SIZE_2="$(df -h "$TARGET" | tail -n 1 | awk {'print $(NF-4)'})"
+	# Get size in a single operation
+	read SIZE_2 SIZE_1 <<<$(df -h "$TARGET" | awk 'NR==2 {print $2, $4}')
 	echo -n " -> $TARGET ($SIZE_2, " ; $SHOW "message16" ; echo "$SIZE_1)"
-	FREESIZE="$(df -B 1048576 "$TARGET" | tail -n 1 | awk {'print $(NF-2)'})"
+	FREESIZE=$(df -B 1048576 "$TARGET" | awk 'NR==2 {print $4}')
 	if [ $FREESIZE -lt $NEEDEDSPACE ] ; then
 		echo $RED
 		$SHOW "message30" ; echo -n "$TARGET" ; $SHOW "message31"
@@ -69,7 +85,10 @@ else
 		echo $WHITE
 		exit 0
 	fi
+	# Add parameters to improve backup performance
 	chmod 755 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh > /dev/null 2>&1
-	$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh "$TARGET" 
-	sync
+	BS_OPTIONS="USB_SPEED=1 COMPRESS_LEVEL=1"
+	$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh "$TARGET" "$BS_OPTIONS"
+	sync &  # Run sync in background
+	exit 0
 fi

@@ -16,7 +16,6 @@ else
 fi
 
 if [ -d "/usr/lib64" ]; then
-	echo "multilib situation!"
 	LIBDIR="/usr/lib64"
 else
 	LIBDIR="/usr/lib"
@@ -44,6 +43,8 @@ FREESIZE_0=0
 TOTALSIZE_0=0
 MEDIA=0
 MINIMUN=33				# avoid all sizes below 33GB
+
+# Check if /hdd is a direct mount or a symlink
 UBIFS="$(df -h /hdd | grep ubi0:rootfs | awk {'print $1'})" > /dev/null 2>&1
 if [ "$UBIFS" = ubi0:rootfs ] ; then
 	HDD_MOUNT="$(ls -l /hdd | grep -o media/hdd)"
@@ -55,17 +56,12 @@ if [ "$UBIFS" = ubi0:rootfs ] ; then
 else
 	touch /hdd/hdd-check > /dev/null 2>&1
 fi
+
 if [ -f /hdd/hdd-check ] ; then  
-	CHECKMOUNT1="$(df -h /hdd | tail -n 1 | awk {'print $6'})"
-	CHECKMOUNT2="$(df -h /hdd | tail -n 1 | awk {'print $5'})"
-	if [ "${CHECKMOUNT1:1:5}" = media ] ; then
-		TOTALSIZE="$(df -h /hdd | tail -n 1 | awk {'print $2'})"
-		FREESIZE="$(df -h /hdd | tail -n 1 | awk {'print $4'})"	
-		MEDIA="$(df -h /hdd | tail -n 1 | awk {'print $6'})"
-	elif [ "${CHECKMOUNT2:1:5}" = media ] ; then
-		TOTALSIZE="$(df -h /hdd | tail -n 1 | awk {'print $1'})"
-		FREESIZE="$(df -h /hdd | tail -n 1 | awk {'print $3'})"
-		MEDIA="$(df -h /hdd | tail -n 1 | awk {'print $5'})"
+	# Get mount information in a single operation
+	MOUNT_INFO=$(df -h /hdd | tail -n 1)
+	if echo "$MOUNT_INFO" | grep -q '^/dev/' ; then
+		read TOTALSIZE FREESIZE MEDIA <<< $(echo "$MOUNT_INFO" | awk '{print $2, $4, $6}')
 	else
 		TOTALSIZE="??"
 		FREESIZE="??"
@@ -74,35 +70,65 @@ if [ -f /hdd/hdd-check ] ; then
 	echo -n " -> /hdd -> $MEDIA ($TOTALSIZE, "; $SHOW "message16" ; echo "$FREESIZE)"
 	echo -n $WHITE
 	chmod 755 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh > /dev/null 2>&1
-	$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh /hdd
+	
+	# Add parameters to improve backup performance
+	BS_OPTIONS="HDD_SPEED=1 COMPRESS_LEVEL=1"
+	$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh /hdd "$BS_OPTIONS"
 	rm -f /hdd/hdd-check
-	sync
+	sync &  # Run sync in background
 else
-	for candidate in /dev/sda1 /dev/sdb1 /dev/sdc1 /dev/sdd1 /dev/sde1 /dev/sdf1
-	do
-		if grep ${candidate} /proc/mounts > /dev/null ; then
-			DISK="$( grep ${candidate} /proc/mounts | awk {'print $3'})" 
-			MEDIA="$( grep -m1 ${candidate} /proc/mounts | awk {'print $2'})" 
-			CHECK=${DISK:0:3}
-			if [ $CHECK = "ext" ] ; then
-				TOTALSIZE="$(df -B 1073741824 ${candidate} | tail -n 1 | awk {'print $2'})" 
-				FREESIZE="$(df -B 1073741824 ${candidate} | tail -n 1 | awk {'print $4'})" 
-				if [ "$FREESIZE" -gt $FREESIZE_0 -a $TOTALSIZE -gt $MINIMUN ] ; then
-					BMEDIA=$MEDIA
+	# More efficient hard drive detection
+	mount_info=$(grep -E '/dev/sd[a-f][0-9]' /proc/mounts)
+	
+	while read -r device mountpoint fstype rest; do
+		if [[ "$fstype" == ext* && "$mountpoint" == /media/* ]]; then
+			# Check disk size in one operation
+			read TOTALSIZE FREESIZE <<< $(df -B 1073741824 "$device" | awk 'NR==2 {print $2, $4}')
+			
+			if [ "$FREESIZE" -gt $FREESIZE_0 -a $TOTALSIZE -gt $MINIMUN ]; then
+				test_file="$mountpoint/HDD-TEST"
+				# Test write access
+				if echo "This is a test file" > "$test_file" 2>/dev/null; then
+					rm -f "$test_file"
+					BMEDIA="$mountpoint"
 					TOTALSIZE_0=$TOTALSIZE
 					FREESIZE_0=$FREESIZE
-					echo "This is an absolete testfile" > $BMEDIA/HDD-TEST
-					if [ -f $BMEDIA/HDD-TEST ] ; then
-						rm -f $BMEDIA/HDD-TEST
-					else
-						#non-writeable disk
-						MEDIA=
-					fi
 				fi
 			fi
 		fi
-	done
-	if  [ $MEDIA = "0" ] ; then
+	done <<< "$mount_info"
+	
+	# If no suitable media found through the efficient method, fall back to traditional approach
+	if [ -z "$BMEDIA" ]; then
+		for candidate in /dev/sda1 /dev/sdb1 /dev/sdc1 /dev/sdd1 /dev/sde1 /dev/sdf1
+		do
+			if grep ${candidate} /proc/mounts > /dev/null ; then
+				DISK="$( grep ${candidate} /proc/mounts | awk {'print $3'})" 
+				MEDIA="$( grep -m1 ${candidate} /proc/mounts | awk {'print $2'})" 
+				CHECK=${DISK:0:3}
+				if [ "$CHECK" = "ext" ] ; then
+					TOTALSIZE="$(df -B 1073741824 ${candidate} | tail -n 1 | awk {'print $2'})" 
+					FREESIZE="$(df -B 1073741824 ${candidate} | tail -n 1 | awk {'print $4'})" 
+					if [ "$FREESIZE" -gt $FREESIZE_0 -a $TOTALSIZE -gt $MINIMUN ] ; then
+						BMEDIA=$MEDIA
+						TOTALSIZE_0=$TOTALSIZE
+						FREESIZE_0=$FREESIZE
+						echo "This is an absolete testfile" > $BMEDIA/HDD-TEST
+						if [ -f $BMEDIA/HDD-TEST ] ; then
+							rm -f $BMEDIA/HDD-TEST
+						else
+							#non-writeable disk
+							MEDIA=
+						fi
+					fi
+				fi
+			fi
+		done
+	else
+		MEDIA=$BMEDIA
+	fi
+	
+	if [ "$MEDIA" = "0" ] ; then
 		echo -n $RED
 		$SHOW "message15"  #echo "No suitable media found"
 		echo -n $WHITE
@@ -113,8 +139,12 @@ else
 		echo -n " -> $MEDIA ($TOTALSIZE_0, "; $SHOW "message16" ; echo -n "$FREESIZE_0)"
 		echo -n $WHITE
 		chmod 755 $LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh > /dev/null 2>&1
-		$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh $MEDIA 
+		
+		# Add parameters to improve backup performance
+		BS_OPTIONS="HDD_SPEED=1 COMPRESS_LEVEL=1"
+		$LIBDIR/enigma2/python/Plugins/Extensions/BackupSuite/backupsuite.sh $MEDIA "$BS_OPTIONS"
 		echo "$HDD_MOUNT" > /tmp/BackupSuite.log
-		sync
+		sync &  # Run sync in background
+		exit 0
 	fi
 fi

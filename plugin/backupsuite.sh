@@ -1,3 +1,5 @@
+
+
 #!/bin/sh
 
 ###############################################################################
@@ -287,20 +289,21 @@ echo "$VERSION"
 echo $WHITE
 ############ CALCULATE SIZE, ESTIMATED SPEED AND SHOW IT ON SCREEN ############
 $SHOW "message06" 	#"Some information about the task:"
-if [ $ROOTNAME != "rootfs.tar.bz2" ] ; then
-	KERNELHEX=`cat /proc/mtd | grep -w "kernel" | cut -d " " -f 2` # Kernelsize in Hex
-else
-	KERNELHEX=800000 # Not the real size (will be added later)
-fi
-KERNEL=$((0x$KERNELHEX))			# Total Kernel size in bytes
-TOTAL=$(($USEDsizebytes+$KERNEL))	# Total ROOTFS + Kernel size in bytes
-KILOBYTES=$(($TOTAL/1024))			# Total ROOTFS + Kernel size in KB
-MEGABYTES=$(($KILOBYTES/1024))
+
+# Calculate size properly using the base-2 definition of MB (1024 KB = 1 MB)
+KERNELHEX=`cat /proc/mtd | grep -w "kernel" | cut -d " " -f 2` # Kernelsize in Hex
+KERNEL=$((0x$KERNELHEX))            # Total Kernel size in bytes
+TOTAL=$(($USEDsizebytes+$KERNEL))   # Total ROOTFS + Kernel size in bytes
+KILOBYTES=$(($TOTAL/1024))          # Total ROOTFS + Kernel size in KB
+MEGABYTES=$(($KILOBYTES/1024))      # This divides by 1024 which is correct
+
+# Display the formatted sizes with proper units
 {
 echo -n "KERNEL" ; $SHOW "message04" ; printf '%6s' $(($KERNEL/1024)); echo ' KB'
 echo -n "ROOTFS" ; $SHOW "message04" ; printf '%6s' $USEDsizekb; echo ' KB'
 echo -n "=TOTAL" ; $SHOW "message04" ; printf '%6s' $KILOBYTES; echo " KB (= $MEGABYTES MB)"
 } 2>&1 | tee -a $LOGFILE
+
 if [ $ROOTNAME = "rootfs.tar.bz2" ] ; then
 	ESTTIMESEC=$(($KILOBYTES/($ESTSPEED*3)))
 else
@@ -411,6 +414,8 @@ else
 		dd if=/dev/kernel of=$WORKDIR/$KERNELNAME > /dev/null 2>&1
 	fi
 fi
+
+
 #############################  MAKING ROOT.UBI(FS) ############################
 $SHOW "message06a" 2>&1 | tee -a $LOGFILE		#Create: root.ubifs
 log $LINE
@@ -584,3 +589,5 @@ if [ "$TARGET" != "XX" ] ; then
 fi
 exit
 ############### END OF PROGRAMM ################
+
+### End Part 2
