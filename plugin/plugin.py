@@ -29,7 +29,9 @@ lang = language.getLanguage()
 environ["LANGUAGE"] = lang[:2]
 gettext.bindtextdomain("enigma2", resolveFilename(SCOPE_LANGUAGE))
 gettext.textdomain("enigma2")
-gettext.bindtextdomain("BackupSuite", "%s%s" % (resolveFilename(SCOPE_PLUGINS), "Extensions/BackupSuite/locale"))
+gettext.bindtextdomain("BackupSuite", "%s%s" % (
+    resolveFilename(SCOPE_PLUGINS), "Extensions/BackupSuite/locale"))
+
 
 def _(txt):
     """Translate function with fallback"""
@@ -41,6 +43,8 @@ def _(txt):
 # -------- Configuration and Global Variables --------
 
 # Cache mounted partitions to avoid multiple scans
+
+
 @lru_cache(maxsize=1)
 def get_mount_choices():
     choices = [('none', 'None'), ("/media/net", _("NAS"))]
@@ -49,6 +53,7 @@ def get_mount_choices():
         if os.path.exists(p.mountpoint) and p.mountpoint != '/':
             choices.append((d, p.mountpoint))
     return choices
+
 
 # Get mount choices for config
 wherechoises = get_mount_choices()
@@ -60,12 +65,18 @@ _session = None
 # -------- Constants --------
 
 # Paths to backup scripts
-BACKUP_HDD = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/backuphdd.sh")
-BACKUP_USB = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/backupusb.sh")
-BACKUP_MMC = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/backupmmc.sh")
-BACKUP_DMM_HDD = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/backuphdd-dmm.sh")
-BACKUP_DMM_USB = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/backupusb-dmm.sh")
-BACKUP_DMM_MMC = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/backupmmc-dmm.sh")
+BACKUP_HDD = resolveFilename(
+    SCOPE_PLUGINS, "Extensions/BackupSuite/backuphdd.sh")
+BACKUP_USB = resolveFilename(
+    SCOPE_PLUGINS, "Extensions/BackupSuite/backupusb.sh")
+BACKUP_MMC = resolveFilename(
+    SCOPE_PLUGINS, "Extensions/BackupSuite/backupmmc.sh")
+BACKUP_DMM_HDD = resolveFilename(
+    SCOPE_PLUGINS, "Extensions/BackupSuite/backuphdd-dmm.sh")
+BACKUP_DMM_USB = resolveFilename(
+    SCOPE_PLUGINS, "Extensions/BackupSuite/backupusb-dmm.sh")
+BACKUP_DMM_MMC = resolveFilename(
+    SCOPE_PLUGINS, "Extensions/BackupSuite/backupmmc-dmm.sh")
 
 # Other constants
 ofgwrite_bin = "/usr/bin/ofgwrite"
@@ -90,6 +101,7 @@ except (IOError, OSError):
 
 # -------- Helper Functions --------
 
+
 def backupCommandHDD():
     """Return the appropriate backup command for HDD based on box type"""
     if getBoxType().startswith("dm"):
@@ -98,6 +110,7 @@ def backupCommandHDD():
         cmd = BACKUP_HDD + ' en_EN'
     return cmd
 
+
 def backupCommandUSB():
     """Return the appropriate backup command for USB based on box type"""
     if getBoxType().startswith("dm"):
@@ -105,6 +118,7 @@ def backupCommandUSB():
     else:
         cmd = BACKUP_USB + ' en_EN'
     return cmd
+
 
 def backupCommandMMC():
     """Return the appropriate backup command for MMC based on box type"""
@@ -116,38 +130,43 @@ def backupCommandMMC():
 
 # -------- Help System Integration --------
 
+
 try:
     from Plugins.SystemPlugins.MPHelp import registerHelp, XMLHelpReader
-    reader = XMLHelpReader(resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/mphelp.xml"))
+    reader = XMLHelpReader(resolveFilename(
+        SCOPE_PLUGINS, "Extensions/BackupSuite/mphelp.xml"))
     backupsuiteHelp = registerHelp(*reader)
 except Exception as e:
-    print("[BackupSuite] Unable to initialize MPHelp:", e, "- Help not available!")
+    print("[BackupSuite] Unable to initialize MPHelp:",
+          e, "- Help not available!")
     backupsuiteHelp = None
 
 # -------- Main Screens --------
 
+
 class BackupStart(Screen):
     """Main screen for backup operations"""
-    
+
     def __init__(self, session, args=0):
         # Select appropriate skin based on screen resolution
         try:
             sz_w = getDesktop(0).size().width()
         except:
             sz_w = 720
-            
+
         if sz_w == 1920:
             self.skin = skinstartfullhd
         elif sz_w >= 1280:
             self.skin = skinstarthd
         else:
             self.skin = skinstartsd
-            
+
         self.session = session
         self.setup_title = _("Make a backup or restore a backup")
         Screen.__init__(self, session)
-        self.skin_path = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite")
-        
+        self.skin_path = resolveFilename(
+            SCOPE_PLUGINS, "Extensions/BackupSuite")
+
         # Setup buttons
         self["key_menu"] = Button(_("Backup > MMC"))
         self["key_red"] = Button(_("Close"))
@@ -155,7 +174,7 @@ class BackupStart(Screen):
         self["key_yellow"] = Button(_("Backup > USB"))
         self["key_blue"] = Button(_("Restore backup"))
         self["help"] = StaticText()
-        
+
         # Setup action map
         self["setupActions"] = ActionMap(["SetupActions", "ColorActions", "EPGSelectActions", "HelpActions"],
         {
@@ -168,39 +187,39 @@ class BackupStart(Screen):
             "cancel": self.cancel,
             "displayHelp": self.showHelp,
         }, -2)
-        
+
         self.setTitle(self.setup_title)
 
     def confirmhdd(self):
         """Confirm HDD backup operation"""
         self.session.openWithCallback(
-            self.backuphdd, 
-            MessageBox, 
-            _("Do you want to make an USB-back-up image on HDD? \n\nThis only takes a few minutes and is fully automatic.\n"), 
-            MessageBox.TYPE_YESNO, 
-            timeout=20, 
+            self.backuphdd,
+            MessageBox,
+            _("Do you want to make an USB-back-up image on HDD? \n\nThis only takes a few minutes and is fully automatic.\n"),
+            MessageBox.TYPE_YESNO,
+            timeout=20,
             default=True
         )
 
     def confirmusb(self):
         """Confirm USB backup operation"""
         self.session.openWithCallback(
-            self.backupusb, 
-            MessageBox, 
-            _("Do you want to make a back-up on USB?\n\nThis only takes a few minutes depending on the used filesystem and is fully automatic.\n\nMake sure you first insert an USB flash drive before you select Yes."), 
-            MessageBox.TYPE_YESNO, 
-            timeout=20, 
+            self.backupusb,
+            MessageBox,
+            _("Do you want to make a back-up on USB?\n\nThis only takes a few minutes depending on the used filesystem and is fully automatic.\n\nMake sure you first insert an USB flash drive before you select Yes."),
+            MessageBox.TYPE_YESNO,
+            timeout=20,
             default=True
         )
 
     def confirmmmc(self):
         """Confirm MMC backup operation"""
         self.session.openWithCallback(
-            self.backupmmc, 
-            MessageBox, 
-            _("Do you want to make an USB-back-up image on MMC? \n\nThis only takes a few minutes and is fully automatic.\n"), 
-            MessageBox.TYPE_YESNO, 
-            timeout=20, 
+            self.backupmmc,
+            MessageBox,
+            _("Do you want to make an USB-back-up image on MMC? \n\nThis only takes a few minutes and is fully automatic.\n"),
+            MessageBox.TYPE_YESNO,
+            timeout=20,
             default=True
         )
 
@@ -212,7 +231,7 @@ class BackupStart(Screen):
     def flashimage(self):
         """Open flash image screen"""
         model = getBoxType()
-        
+
         # Determine file types based on box model
         if model in ("vuduo", "vusolo", "vuultimo", "vuuno") or model.startswith("ebox"):
             files = "^.*\.(zip|bin|jffs2)"
@@ -221,11 +240,12 @@ class BackupStart(Screen):
         elif model in ("h9", "h9se", "h9combo", "h9combose", "i55plus", "i55se", "h10", "hzero", "h8", "dinobotu55", "iziboxx3", "dinoboth265", "axashistwin", "protek4kx1"):
             files = "^.*\.(zip|bin|ubi)"
         elif model.startswith("dm"):
-            self.session.open(MessageBox, _("No supported receiver found!"), MessageBox.TYPE_ERROR)
+            self.session.open(MessageBox, _(
+                "No supported receiver found!"), MessageBox.TYPE_ERROR)
             return
         else:
             files = "^.*\.(zip|bin)"
-            
+
         curdir = '/media/'
         self.session.open(FlashImageConfig, curdir, files)
 
@@ -249,7 +269,8 @@ class BackupStart(Screen):
             self.writeEnigma2VersionFile()
             text = _('Full back-up on HDD')
             cmd = backupCommandHDD()
-            self.session.openWithCallback(self.consoleClosed, Console, text, [cmd])
+            self.session.openWithCallback(
+                self.consoleClosed, Console, text, [cmd])
 
     def backupusb(self, ret=False):
         """Start USB backup if confirmed"""
@@ -257,7 +278,8 @@ class BackupStart(Screen):
             self.writeEnigma2VersionFile()
             text = _('Full back-up to USB')
             cmd = backupCommandUSB()
-            self.session.openWithCallback(self.consoleClosed, Console, text, [cmd])
+            self.session.openWithCallback(
+                self.consoleClosed, Console, text, [cmd])
 
     def backupmmc(self, ret=False):
         """Start MMC backup if confirmed"""
@@ -265,7 +287,8 @@ class BackupStart(Screen):
             self.writeEnigma2VersionFile()
             text = _('Full back-up on MMC')
             cmd = backupCommandMMC()
-            self.session.openWithCallback(self.consoleClosed, Console, text, [cmd])
+            self.session.openWithCallback(
+                self.consoleClosed, Console, text, [cmd])
 
     def consoleClosed(self, answer=None):
         """Callback when console is closed"""
@@ -273,30 +296,32 @@ class BackupStart(Screen):
 
 # -------- Info Screen --------
 
+
 class WhatisNewInfo(Screen):
     """Screen to display what's new information"""
-    
+
     def __init__(self, session):
         # Select appropriate skin based on screen resolution
         try:
             sz_w = getDesktop(0).size().width()
         except:
             sz_w = 720
-            
+
         if sz_w == 1920:
             self.skin = skinnewfullhd
         elif sz_w >= 1280:
             self.skin = skinnewhd
         else:
             self.skin = skinnewsd
-            
+
         Screen.__init__(self, session)
-        self.skin_path = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite")
-        
+        self.skin_path = resolveFilename(
+            SCOPE_PLUGINS, "Extensions/BackupSuite")
+
         self["Title"].setText(_("What is new since the last release?"))
         self["key_red"] = Button(_("Close"))
         self["AboutScrollLabel"] = ScrollLabel(_("Please wait"))
-        
+
         self["actions"] = ActionMap(["SetupActions", "DirectionActions"],
             {
                 "cancel": self.close,
@@ -304,54 +329,59 @@ class WhatisNewInfo(Screen):
                 "up": self["AboutScrollLabel"].pageUp,
                 "down": self["AboutScrollLabel"].pageDown
             })
-            
+
         # Load and display the whatsnew content
-        whatsnew_path = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite/whatsnew.txt")
+        whatsnew_path = resolveFilename(
+            SCOPE_PLUGINS, "Extensions/BackupSuite/whatsnew.txt")
         try:
             with open(whatsnew_path) as file:
                 whatsnew = file.read()
             self["AboutScrollLabel"].setText(whatsnew)
         except (IOError, OSError):
-            self["AboutScrollLabel"].setText(_("Unable to load what's new information."))
+            self["AboutScrollLabel"].setText(
+                _("Unable to load what's new information."))
 
 # -------- Flash Image Screen --------
 
+
 class FlashImageConfig(Screen):
     """Screen to configure and execute flashing of images"""
-    
+
     def __init__(self, session, curdir, matchingPattern=None):
         # Select appropriate skin based on screen resolution
         try:
             sz_w = getDesktop(0).size().width()
         except:
             sz_w = 720
-            
+
         if sz_w == 1920:
             self.skin = skinflashfullhd
         elif sz_w >= 1280:
             self.skin = skinflashhd
         else:
             self.skin = skinflashsd
-            
+
         Screen.__init__(self, session)
-        self.skin_path = resolveFilename(SCOPE_PLUGINS, "Extensions/BackupSuite")
-        
+        self.skin_path = resolveFilename(
+            SCOPE_PLUGINS, "Extensions/BackupSuite")
+
         self["Title"].setText(_("Select the folder with backup"))
         self["key_red"] = StaticText(_("Close"))
         self["key_green"] = StaticText("")
         self["key_yellow"] = StaticText("")
         self["key_blue"] = StaticText("")
         self["curdir"] = StaticText(_("current:  %s") % (curdir or ''))
-        
+
         self.founds = False
         self.dualboot = self.dualBoot()
         self.ForceMode = self.ForceMode()
-        
+
         # Setup file browser
-        self.filelist = FileList(curdir, matchingPattern=matchingPattern, enableWrapAround=True)
+        self.filelist = FileList(
+            curdir, matchingPattern=matchingPattern, enableWrapAround=True)
         self.filelist.onSelectionChanged.append(self.__selChanged)
         self["filelist"] = self.filelist
-        
+
         self["FilelistActions"] = ActionMap(["SetupActions", "ColorActions"],
             {
                 "green": self.keyGreen,
@@ -361,11 +391,13 @@ class FlashImageConfig(Screen):
                 "ok": self.keyOk,
                 "cancel": self.keyRed
             })
-            
+
         self.onLayoutFinish.append(self.__layoutFinished)
 
     def __layoutFinished(self):
         pass
+# Part 1 End
+
 
     def dualBoot(self):
         """Check if the device supports dual boot"""
