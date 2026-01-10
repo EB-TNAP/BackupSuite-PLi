@@ -266,12 +266,12 @@ else
 	if [ $ROOTNAME = "rootfs.tar.bz2" ] ; then
 		MKFS=/bin/tar
 		checkbinary $MKFS
-		BZIP2=/usr/bin/bzip2
-		if [ ! -f "$BZIP2" ] ; then
-			echo "$BZIP2 " ; $SHOW "message38"
+		PBZIP2=/usr/bin/pbzip2
+		if [ ! -f "$PBZIP2" ] ; then
+			echo "$PBZIP2 " ; $SHOW "message38"
 			opkg update > /dev/null 2>&1
-			opkg install bzip2 > /dev/null 2>&1
-			checkbinary $MKFS
+			opkg install pbzip2 > /dev/null 2>&1
+			checkbinary $PBZIP2
 		fi
 	fi
 fi
@@ -305,7 +305,7 @@ echo -n "=TOTAL" ; $SHOW "message04" ; printf '%6s' $KILOBYTES; echo " KB (= $ME
 } 2>&1 | tee -a $LOGFILE
 
 if [ $ROOTNAME = "rootfs.tar.bz2" ] ; then
-	ESTTIMESEC=$(($KILOBYTES/($ESTSPEED*3)))
+	ESTTIMESEC=$(($KILOBYTES/($ESTSPEED*9)))
 else
 	ESTTIMESEC=$(($KILOBYTES/$ESTSPEED))
 fi
@@ -451,7 +451,7 @@ else
 	else
 		$MKFS -cf $WORKDIR/rootfs.tar -C /tmp/bi/root .
 	fi
-	$BZIP2 $WORKDIR/rootfs.tar
+	$PBZIP2 -p$(nproc) $WORKDIR/rootfs.tar
 fi
 ############################ ASSEMBLING THE IMAGE #############################
 make_folders
